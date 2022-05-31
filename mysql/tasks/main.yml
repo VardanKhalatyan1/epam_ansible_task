@@ -7,18 +7,23 @@
 
     - name: install mysql
       apt: name=mariadb-server state=present update-cache=yes
+
     - name: enable mysql
       service: name=mariadb state=started enabled=yes
+
     - name: install pip3
       apt: name=python3-pip state=present 
+
     - name: install pymysql
       pip:
         name: pymysql
+
     - name: reset root password
       user:
         name: root
         state: present
         password: " mysql_root_password | password_hash('sha512') "
+        
     - name: Set the root password
       mysql_user:
         name: root
