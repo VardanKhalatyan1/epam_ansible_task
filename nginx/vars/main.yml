@@ -1,8 +1,6 @@
 ---
 # vars file for nginx
 
----
-
 #MySQL Settings
 mysql_db: "wordpress_db"
 mysql_user: "wordpress"

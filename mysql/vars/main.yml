@@ -1,7 +1,6 @@
 ---
 # vars file for mysql
 
----
 
 #MySQL Settings
 mysql_db: "wordpress_db"
