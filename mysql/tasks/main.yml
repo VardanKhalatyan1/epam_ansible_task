@@ -2,7 +2,7 @@
 # tasks file for mysql
 
 
----
+
 # defaults file for mysql
 
     - name: install mysql
