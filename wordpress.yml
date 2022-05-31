@@ -1,0 +1,190 @@
+---
+
+- name: starting playbook
+  hosts: nginx
+  become: yes
+  
+  roles:
+    - wordpress
+
+  tasks:
+    - name: check servers
+      ping:
+
+  tasks:
+    - name: install nginx
+      apt: name=nginx state=present update-cache=yes
+      notify: enable nginx
+#    - name: enable nginx
+#      service: name=nginx state=started enabled=yes
+
+    - name: install php
+      apt: name=php,php-cli,php-fpm,php-mysql,php-json,php-opcache,php-mbstring,php-xml,php-gd,php-curl state=present update-cache=yes
+    - name: enable php
+      service: name=php8.1-fpm state=started enabled=yes
+
+    - name: install mysql
+      apt: name=mariadb-server state=present update-cache=yes
+    - name: enable mysql
+      service: name=mariadb state=started enabled=yes
+    - name: install pip3
+      apt: name=python3-pip state=present 
+    - name: install pymysql
+      pip:
+        name: pymysql
+    - name: reset root password
+      user:
+        name: root
+        state: present
+        password: " mysql_root_password | password_hash('sha512') "
+  #  - name: "Mysql Configuration - Resetting RootPassword"
+  #    mysql_user:
+  #      login_user: root
+  #      login_password: ""
+  #      name: root
+  #      host_all: yes     
+  #      password: "{{mysql_root_password}}"
+  #  - name: update mysql root password for root account
+  #    mysql_user:
+  #      name: root
+  #      login_unix_socket: /var/run/mysqld/mysqld.sock
+  #      host_all: yes
+  #      password: '{{ mysql_root_password }}'
+  #      priv: "*.*:ALL,GRANT"
+  #      check_implicit_admin: true
+
+    - name: Create document root
+      file:
+        path: "/var/www/{{ http_host }}"
+        state: directory
+        owner: "www-data"
+        group: "www-data"
+        mode: '0755'
+      tags: [ apache ]
+#      notify: Set the root password
+
+
+    - name: Set the root password
+      mysql_user:
+        name: root
+        password: "{{ mysql_root_password }}"
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+      tags: [ mysql, mysql-root ]
+
+    - name: Remove all anonymous user accounts
+      mysql_user:
+        name: ''
+        host_all: yes
+        state: absent
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+      tags: [ mysql ]
+
+    - name: Remove the MySQL test database
+      mysql_db:
+        name: test
+        state: absent
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+      tags: [ mysql ]
+
+    - name: Creates database for WordPress
+      mysql_db:
+        name: "{{ mysql_db }}"
+        state: present
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+      tags: [ mysql ]
+
+    - name: Create MySQL user for WordPress
+      mysql_user:
+        name: "{{ mysql_user }}"
+        password: "{{ mysql_password }}"
+        priv: "{{ mysql_db }}.*:ALL"
+        state: present
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+      tags: [ mysql ]
+
+  #  - name: Creates database for WordPress
+  #    mysql_db:
+  #      name: "{{ mysql_db }}"
+  #      state: present
+  #      login_user: root
+  #      login_password: "{{ mysql_root_password }}"
+  #      login_unix_socket: /var/lib/mysql/mysql.sock
+
+  #  - name: Create MySQL user for WordPress
+  #    mysql_user:
+  #      name: "{{ mysql_user }}"
+  #      password: "{{ mysql_password }}"
+  #      priv: "{{ mysql_db }}.*:ALL"
+  #      state: present
+  #      login_user: root
+  #      login_password: "{{ mysql_root_password }}"
+
+
+
+  #  - name: enable mysql
+  #    service: name=mysql state=started enabled=yes
+
+
+    - name: Download and unpack latest WordPress
+      unarchive:
+        src: https://wordpress.org/latest.tar.gz
+        dest: "/var/www/html"
+        remote_src: yes
+        creates: "/var/www/html/wordpress"
+      
+
+    - name: Set ownership
+      file:
+        path: "/var/www/html"
+        state: directory
+        recurse: yes
+        owner: www-data
+        group: www-data
+      
+
+    - name: Set permissions for directories
+      shell: "/usr/bin/find /var/www/html/wordpress/ -type d -exec chmod 750 {} \\;"
+      
+
+    - name: Set permissions for files
+      shell: "/usr/bin/find /var/www/html/wordpress/ -type f -exec chmod 640 {} \\;"
+      
+
+    - name: Set up wp-config
+      template:
+        src: "wordpress/files/wp-config.php.j2"
+        dest: "/var/www/html/wordpress/wp-config.php"
+      
+
+    - name: Set up wordpress-config
+      template:
+        src: "wordpress/files/nginx.conf.j2"
+        dest: "/etc/nginx/conf.d/wordpress.conf"
+
+
+    - name: remove defaults
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - /etc/nginx/sites-available/default
+        - /etc/nginx/sites-enabled/default
+      notify: restart nginx
+
+
+  handlers:
+  
+    - name: restart nginx
+      service: name=nginx state=restarted
+    - name: enable nginx
+      service: name=nginx state=started enabled=yes
+    - name: Set the root password
+      mysql_user:
+        name: root
+        password: "{{ mysql_root_password }}"
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+      tags: [ mysql, mysql-root ]

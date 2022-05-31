@@ -1,2 +1,8 @@
 ---
-# vars file for wordpress
+
+#MySQL Settings
+mysql_db: "wordpress_db"
+mysql_user: "wordpress"
+mysql_password: "12345"
+mysql_root_password: "Aa123456"
+http_host: "mysite"
