@@ -43,3 +43,6 @@
       template:
         src: "wordpress/files/nginx.conf.j2"
         dest: "/etc/nginx/conf.d/wordpress.conf"
+
+    - name: restart nginx
+      service: name=nginx state=restarted
